@@ -6,6 +6,28 @@ library(ggplot2)
 
 datajob <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
 
+pie_chart_year <- ggplot(data = NULL, aes(x = "", y = year_percentages, fill = names(year_percentages))) +
+      geom_bar(stat = "identity", width = 1) +
+      coord_polar("y", start = 0) +
+      theme_void() +
+      theme(legend.position = "bottom") +
+      labs(title = "Percentage Distribution by Year") +
+      geom_text(aes(label = paste0(round(year_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+
+pie_chart_experience <- ggplot(data = NULL, aes(x = "", y = experience_percentages, fill = names(experience_percentages))) +
+      geom_bar(stat = "identity", width = 1) +
+      coord_polar("y", start = 0) +
+      theme_void() +
+      theme(legend.position = "bottom") +
+      labs(title = "Percentage Distribution by Experience Level") +
+      geom_text(aes(label = paste0(round(experience_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+
+```
+
+
+
+```{r}
+
 datajob = datajob %>% 
   filter(company_location == "US") %>% 
   filter(work_year == 2023)
@@ -36,43 +58,56 @@ datajob <- datajob %>%
     TRUE ~ "Other"
   ))
 
-ui <- fluidPage(
-  
-  titlePanel("Data Science Fields and Salaries by Experience Level (2023)"),
-  
-  sidebarLayout(
-    sidebarPanel(
+# Define UI for the experience bar page
+experienceBarUI <- function() {
+  fluidPage(
+    titlePanel("Data Science Fields and Salaries by Experience Level (2023)"),
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("job_field",
+                    "Job Field",
+                    choices = unique(datajob$category),
+                    multiple = TRUE,
+                    selected = unique(datajob$category)),
+        
+        selectInput("experience",
+                    "Experience Level:",
+                    choices = c("Entry Level" = "EN",
+                                "Mid Level" = "MI",
+                                "Senior Level" = "SE",
+                                "Executive Level" = "EX"),
+                    multiple = TRUE),
+        
+        checkboxGroupInput("company_size", 
+                           "Company Size", 
+                           choices = c("Small (<50 Employees)" = "S",
+                                       "Medium (50 to 250 Employees)" = "M",
+                                       "Large (>250 Employees)" = "L"),
+                           selected = unique(datajob$company_size))
+      ),
       
-      selectInput("job_field",
-                  "Job Field",
-                  choices = unique(datajob$category),
-                  multiple = TRUE,
-                  selected = unique(datajob$category)),
-      
-      selectInput("experience",
-                  "Experience Level:",
-                  choices = c("Entry Level" = "EN",
-                              "Mid Level" = "MI",
-                              "Senior Level" = "SE",
-                              "Executive Level" = "EX"),
-                  multiple = TRUE),
-      
-      checkboxGroupInput("company_size", 
-                         "Company Size", 
-                         choices = c("Small (<50 Employees)" = "S",
-                                     "Medium (50 to 250 Employees)" = "M",
-                                     "Large (>250 Employees)" = "L"),
-                         selected = unique(datajob$company_size))
-
-    ),
-    
-    mainPanel(
-      plotOutput("experienceBar")
+      mainPanel(
+        plotOutput("experienceBar")
+      )
     )
-    
   )
-)
+}
 
+# Define UI for the pie charts page
+pieChartsUI <- function() {
+  fluidPage(
+    titlePanel("Data Science Fields and Salaries by Experience Level (2023)"),
+    tabsetPanel(
+      tabPanel("Pie Charts",
+        plotOutput("pie_chart_experience"),
+        plotOutput("pie_chart_year")
+      )
+    )
+  )
+}
+
+
+# Define server logic
 server <- function(input, output) {
   
   filteredData <- reactive({
@@ -99,8 +134,22 @@ server <- function(input, output) {
       scale_fill_manual(values = c("EN" = "blue", "MI" = "green", "SE" = "orange", "EX" = "red"),
                         labels = c("EN" = "Entry Level", "MI" = "Mid Level", "SE" = "Senior Level", "EX" = "Executive Level"))
   })
+  
+  # Render pie chart for experience level distribution
+  output$pie_chart_experience <- renderPlot({
+    geom_text(aes(label = paste0(round(experience_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+    pie(experience_percentages, main = "Experience Level Distribution")
+  })
+  
+  # Render pie chart for year distribution
+  output$pie_chart_year <- renderPlot({
+    geom_text(aes(label = paste0(round(year_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+    pie(year_percentages, main = "Year Distribution")
+  })
 }
 
-
-
-shinyApp(ui = ui, server = server)
+# Run the application 
+shinyApp(ui = navbarPage("Data Science Dashboard",
+                          tabPanel("Experience Bar", experienceBarUI()),
+                          tabPanel("Pie Charts", pieChartsUI())),
+         server = server)
