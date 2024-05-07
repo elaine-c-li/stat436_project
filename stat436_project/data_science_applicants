@@ -5,7 +5,7 @@ library(ggplot2)
 library(tidyr) 
 
 
-data <- read_csv("data_science_job.csv") %>%
+data <- read_csv("https://uwmadison.box.com/shared/static/uo7fntpeuk22bx337cqhvn59dvv7jj6z.csv") %>%
   drop_na(major_discipline, education_level, gender, company_type, company_size) %>%
   filter(!(company_size %in% c("Oct-49", "10000+")))
 
