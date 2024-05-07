@@ -6,8 +6,9 @@ library(ggplot2)
 
 datajob <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
 
-datajob <- datajob %>%
-  filter(company_location == "US")
+datajob = datajob %>% 
+  filter(company_location == "US") %>% 
+  filter(work_year == 2023)
 
 datajob <- datajob %>%
   mutate(category = case_when(
@@ -37,10 +38,16 @@ datajob <- datajob %>%
 
 ui <- fluidPage(
   
-  titlePanel("Data Science Jobs and Salaries by Experience Level"),
+  titlePanel("Data Science Fields and Salaries by Experience Level (2023)"),
   
   sidebarLayout(
     sidebarPanel(
+      
+      selectInput("job_field",
+                  "Job Field",
+                  choices = unique(datajob$category),
+                  multiple = TRUE,
+                  selected = unique(datajob$category)),
       
       selectInput("experience",
                   "Experience Level:",
@@ -49,21 +56,51 @@ ui <- fluidPage(
                               "Senior Level" = "SE",
                               "Executive Level" = "EX"),
                   multiple = TRUE),
+      
+      checkboxGroupInput("company_size", 
+                         "Company Size", 
+                         choices = c("Small (<50 Employees)" = "S",
+                                     "Medium (50 to 250 Employees)" = "M",
+                                     "Large (>250 Employees)" = "L"),
+                         selected = unique(datajob$company_size))
+
     ),
-    
-    selectInput("year",
-    )
     
     mainPanel(
       plotOutput("experienceBar")
     )
+    
   )
 )
 
 server <- function(input, output) {
   
+  filteredData <- reactive({
+    datajob %>% 
+      filter(category %in% input$job_field) %>%
+      filter(experience_level %in% input$experience) %>%
+      filter(company_size %in% input$company_size) %>%
+      group_by(category, experience_level) %>%
+      summarize(avg_salary = mean(salary_in_usd), .groups = 'drop') %>% 
+      arrange(avg_salary)
+  })
   
+  output$experienceBar <- renderPlot({
+    filtered <- filteredData()
+    
+    if(nrow(filtered) == 0) {
+      return(NULL)
+    }
+    
+    ggplot(filtered, aes(x = category, y = avg_salary, fill = experience_level)) +
+      geom_bar(stat = "identity", position = position_dodge()) +
+      labs(x = "Job Field", y = "Average Salary (USD)", fill = "Experience Level") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+      scale_fill_manual(values = c("EN" = "blue", "MI" = "green", "SE" = "orange", "EX" = "red"),
+                        labels = c("EN" = "Entry Level", "MI" = "Mid Level", "SE" = "Senior Level", "EX" = "Executive Level"))
+  })
 }
+
 
 
 shinyApp(ui = ui, server = server)
