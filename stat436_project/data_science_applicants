@@ -1,0 +1,59 @@
+library(shiny)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr) 
+
+
+data <- read_csv("data_science_job.csv") %>%
+  drop_na(major_discipline, education_level, gender, company_type, company_size) %>%
+  filter(!(company_size %in% c("Oct-49", "10000+")))
+
+ui <- fluidPage(
+  titlePanel("Job Applicant Analysis"),
+  sidebarLayout(
+    sidebarPanel(
+      checkboxGroupInput("companyType", "Select Company Type:",
+                         choices = unique(data$company_type),
+                         selected = unique(data$company_type)),
+      checkboxGroupInput("companySize", "Select Company Size:",
+                         choices = unique(data$company_size),
+                         selected = unique(data$company_size))
+    ),
+    mainPanel(
+      plotOutput("plotMajorDiscipline"),
+      plotOutput("plotEducationLevel"),
+      plotOutput("plotGender")
+    )
+  )
+)
+
+server <- function(input, output) {
+  filteredData <- reactive({
+    data %>%
+      filter(company_type %in% input$companyType, company_size %in% input$companySize)
+  })
+  
+  output$plotMajorDiscipline <- renderPlot({
+    ggplot(filteredData(), aes(x = "", fill = major_discipline)) +
+      geom_bar(width = 1, stat = "count") +
+      coord_polar(theta = "y") +
+      labs(fill = "Major Discipline", title = "Distribution of Major Disciplines")
+  })
+  
+  output$plotEducationLevel <- renderPlot({
+    ggplot(filteredData(), aes(x = "", fill = education_level)) +
+      geom_bar(width = 1, stat = "count") +
+      coord_polar(theta = "y") +
+      labs(fill = "Education Level", title = "Distribution of Education Levels")
+  })
+  
+  output$plotGender <- renderPlot({
+    ggplot(filteredData(), aes(x = "", fill = gender)) +
+      geom_bar(width = 1, stat = "count") +
+      coord_polar(theta = "y") +
+      labs(fill = "Gender", title = "Gender Distribution")
+  })
+}
+
+shinyApp(ui = ui, server = server)
