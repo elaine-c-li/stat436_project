@@ -1,0 +1,66 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(shiny)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+```
+
+```{r}
+datajob <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
+
+datajob <- datajob %>%
+  filter(company_location == "US")
+
+
+
+```
+
+```{r}
+# Convert experience_level and category to factors to ensure correct ordering
+datajob$experience_level <- factor(datajob$experience_level, levels = c("MI", "SE", "EX", "EN"))
+
+
+
+
+# Calculate percentages for each experience level
+experience_percentages <- prop.table(table(datajob$experience_level)) * 100
+
+
+ 
+# Create pie chart for experience level percentages with percentage labels
+pie_chart_experience <- ggplot(data = NULL, aes(x = "", y = experience_percentages, fill = names(experience_percentages))) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "Percentage Distribution by Experience Level") +
+  geom_text(aes(label = paste0(round(experience_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+
+# Print the pie charts
+print(pie_chart_experience)
+
+```
+
+
+```{r}
+
+# Calculate percentages for each year
+year_percentages <- prop.table(table(datajob$work_year)) * 100
+
+# Create pie chart for year percentages with percentage labels
+pie_chart_year <- ggplot(data = NULL, aes(x = "", y = year_percentages, fill = names(year_percentages))) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "Percentage Distribution by Year") +
+  geom_text(aes(label = paste0(round(year_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+
+# Print the pie chart with percentages
+print(pie_chart_year)
+
+
+```
