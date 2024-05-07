@@ -9,9 +9,9 @@ library(ggplot2)
 ```
 
 ```{r}
-datajob <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
+datajob_pie <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
 
-datajob <- datajob %>%
+datajob_pie <- datajob_pie %>%
   filter(company_location == "US")
 
 
@@ -20,13 +20,13 @@ datajob <- datajob %>%
 
 ```{r}
 # Convert experience_level and category to factors to ensure correct ordering
-datajob$experience_level <- factor(datajob$experience_level, levels = c("MI", "SE", "EX", "EN"))
+datajob_pie$experience_level <- factor(datajob_pie$experience_level, levels = c("MI", "SE", "EX", "EN"))
 
 
 
 
 # Calculate percentages for each experience level
-experience_percentages <- prop.table(table(datajob$experience_level)) * 100
+experience_percentages <- prop.table(table(datajob_pie$experience_level)) * 100
 
 
  
@@ -48,7 +48,7 @@ print(pie_chart_experience)
 ```{r}
 
 # Calculate percentages for each year
-year_percentages <- prop.table(table(datajob$work_year)) * 100
+year_percentages <- prop.table(table(datajob_pie$work_year)) * 100
 
 # Create pie chart for year percentages with percentage labels
 pie_chart_year <- ggplot(data = NULL, aes(x = "", y = year_percentages, fill = names(year_percentages))) +

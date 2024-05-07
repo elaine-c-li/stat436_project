@@ -8,7 +8,33 @@ library(readr)
 library(ggalt)
 library(shinyWidgets)
 
-# Load and preprocess data
+datajob_pie <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
+
+datajob_pie <- datajob_pie %>%
+  filter(company_location == "US")
+
+datajob_pie$experience_level <- factor(datajob_pie$experience_level, levels = c("MI", "SE", "EX", "EN"))
+
+experience_percentages <- prop.table(table(datajob_pie$experience_level)) * 100
+
+pie_chart_experience <- ggplot(data = NULL, aes(x = "", y = experience_percentages, fill = names(experience_percentages))) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "Percentage Distribution by Experience Level") +
+  geom_text(aes(label = paste0(round(experience_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+
+year_percentages <- prop.table(table(datajob_pie$work_year)) * 100
+
+pie_chart_year <- ggplot(data = NULL, aes(x = "", y = year_percentages, fill = names(year_percentages))) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "Percentage Distribution by Year") +
+  geom_text(aes(label = paste0(round(year_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+
 datajob <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
 
 datajob = datajob %>% 
@@ -62,7 +88,8 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Average Salary by Experience", tabName = "salary_by_experience", icon = icon("bar-chart")),
-      menuItem("Cost of Living Analysis", tabName = "cost_of_living", icon = icon("globe"))
+      menuItem("Cost of Living Analysis", tabName = "cost_of_living", icon = icon("globe")),
+      menuItem("Pie Charts", tabName = "pie_charts", icon = icon("chart-pie"))
     )
   ),
   dashboardBody(
@@ -148,11 +175,33 @@ ui <- dashboardPage(
                   plotOutput("stateMap")
                 )
               )
+      ),
+      
+      tabItem(tabName = "pie_charts",
+              fluidRow(
+                box(
+                  title = "Experience Level Distribution",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = TRUE,
+                  width = 6,
+                  plotOutput("pie_chart_experience")
+                ),
+                box(
+                  title = "Year Distribution",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = TRUE,
+                  width = 6,
+                  plotOutput("pie_chart_year")
+                )
+              )
       )
     )
   )
 )
 
+# Define server logic
 server <- function(input, output) {
   # Tab 1: Average Salary by Experience
   filteredDataSalary <- reactive({
@@ -207,6 +256,22 @@ server <- function(input, output) {
         labs(fill = "Index Value")
     }
   })
+  
+  # Tab 3: Pie Charts
+  output$pie_chart_experience <- renderPlot({
+    print(pie_chart_experience)
+  })
+
+  output$pie_chart_year <- renderPlot({
+    print(pie_chart_year)
+  })
+  
 }
 
 shinyApp(ui = ui, server = server)
+
+  
+  
+
+
+
