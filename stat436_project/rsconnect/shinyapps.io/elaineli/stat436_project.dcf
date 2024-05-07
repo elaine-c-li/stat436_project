@@ -1,0 +1,13 @@
+name: stat436_project
+title: stat436_project
+username: elaineli
+account: elaineli
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 11950721
+bundleId: 8585442
+url: https://elaineli.shinyapps.io/stat436_project/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: milestone3.Rmd|pie_charts

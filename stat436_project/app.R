@@ -8,6 +8,10 @@ library(readr)
 library(ggalt)
 library(shinyWidgets)
 
+data_applicants <- read_csv("https://uwmadison.box.com/shared/static/uo7fntpeuk22bx337cqhvn59dvv7jj6z.csv") %>%
+  drop_na(major_discipline, education_level, gender, company_type, company_size) %>%
+  filter(!(company_size %in% c("Oct-49", "10000+")))
+
 datajob_pie <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
 
 datajob_pie <- datajob_pie %>%
@@ -22,8 +26,8 @@ pie_chart_experience <- ggplot(data = NULL, aes(x = "", y = experience_percentag
   coord_polar("y", start = 0) +
   theme_void() +
   theme(legend.position = "bottom") +
-  labs(title = "Percentage Distribution by Experience Level") +
-  geom_text(aes(label = paste0(round(experience_percentages, 1), "%")), position = position_stack(vjust = 0.5))
+  labs(title = "Percentage Distribution by Experience Level", fill = "Experience Level") +
+  geom_text(aes(label = paste0(round(experience_percentages, 1), "%")), position = position_stack(vjust = 0.5)) 
 
 year_percentages <- prop.table(table(datajob_pie$work_year)) * 100
 
@@ -32,7 +36,7 @@ pie_chart_year <- ggplot(data = NULL, aes(x = "", y = year_percentages, fill = n
   coord_polar("y", start = 0) +
   theme_void() +
   theme(legend.position = "bottom") +
-  labs(title = "Percentage Distribution by Year") +
+  labs(title = "Percentage Distribution by Year", fill = "Year") +
   geom_text(aes(label = paste0(round(year_percentages, 1), "%")), position = position_stack(vjust = 0.5))
 
 datajob <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
@@ -89,7 +93,8 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Average Salary by Experience", tabName = "salary_by_experience", icon = icon("bar-chart")),
       menuItem("Cost of Living Analysis", tabName = "cost_of_living", icon = icon("globe")),
-      menuItem("Pie Charts", tabName = "pie_charts", icon = icon("chart-pie"))
+      menuItem("Pie Charts", tabName = "pie_charts", icon = icon("chart-pie")),
+      menuItem("Job Applicant Analysis", tabName = "job_applicant_analysis", icon = icon("users"))
     )
   ),
   dashboardBody(
@@ -173,6 +178,27 @@ ui <- dashboardPage(
                               max = 350, 
                               value = c(50, 350)),
                   plotOutput("stateMap")
+                )
+              )
+      ),
+      
+      tabItem(tabName = "job_applicant_analysis",
+              fluidRow(
+                box(
+                  title = "Job Applicant Analysis",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = TRUE,
+                  width = 12,
+                  checkboxGroupInput("companyType", "Select Company Type:",
+                                     choices = unique(data_applicants$company_type),
+                                     selected = unique(data_applicants$company_type)),
+                  checkboxGroupInput("companySize", "Select Company Size:",
+                                     choices = unique(data_applicants$company_size),
+                                     selected = unique(data_applicants$company_size)),
+                  plotOutput("plotMajorDiscipline"),
+                  plotOutput("plotEducationLevel"),
+                  plotOutput("plotGender")
                 )
               )
       ),
@@ -266,6 +292,32 @@ server <- function(input, output) {
     print(pie_chart_year)
   })
   
+  # Tab 4: Job Applicant Analysis
+  filteredDataApplicant <- reactive({
+    data_applicants %>%
+      filter(company_type %in% input$companyType, company_size %in% input$companySize)
+  })
+  
+  output$plotMajorDiscipline <- renderPlot({
+    ggplot(filteredDataApplicant(), aes(x = "", fill = major_discipline)) +
+      geom_bar(width = 1, stat = "count") +
+      coord_polar(theta = "y") +
+      labs(fill = "Major Discipline", title = "Distribution of Major Disciplines")
+  })
+  
+  output$plotEducationLevel <- renderPlot({
+    ggplot(filteredDataApplicant(), aes(x = "", fill = education_level)) +
+      geom_bar(width = 1, stat = "count") +
+      coord_polar(theta = "y") +
+      labs(fill = "Education Level", title = "Distribution of Education Levels")
+  })
+  
+  output$plotGender <- renderPlot({
+    ggplot(filteredDataApplicant(), aes(x = "", fill = gender)) +
+      geom_bar(width = 1, stat = "count") +
+      coord_polar(theta = "y") +
+      labs(fill = "Gender", title = "Gender Distribution")
+  })
 }
 
 shinyApp(ui = ui, server = server)
