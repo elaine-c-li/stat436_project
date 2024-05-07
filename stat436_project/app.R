@@ -10,8 +10,9 @@ library(shinyWidgets)
 
 data_applicants <- read_csv("https://uwmadison.box.com/shared/static/uo7fntpeuk22bx337cqhvn59dvv7jj6z.csv") %>%
   drop_na(major_discipline, education_level, gender, company_type, company_size) %>%
-  filter(!(company_size %in% c("Oct-49", "10000+")))
-
+  filter(!(company_size %in% c("Oct-49", "10000+"))) %>% 
+  mutate(company_size = ifelse(company_size %in% c("10/49"), "10-49", company_size)) 
+  
 datajob_pie <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
 
 datajob_pie <- datajob_pie %>%
@@ -91,8 +92,8 @@ ui <- dashboardPage(
   dashboardHeader(title = "Data Science Jobs and Salaries"),
   dashboardSidebar(
     sidebarMenu(
-      menuItem("Average Salary by Experience", tabName = "salary_by_experience", icon = icon("bar-chart")),
       menuItem("Cost of Living Analysis", tabName = "cost_of_living", icon = icon("globe")),
+      menuItem("Average Salary by Experience", tabName = "salary_by_experience", icon = icon("bar-chart")),
       menuItem("Pie Charts", tabName = "pie_charts", icon = icon("chart-pie")),
       menuItem("Job Applicant Analysis", tabName = "job_applicant_analysis", icon = icon("users"))
     )
