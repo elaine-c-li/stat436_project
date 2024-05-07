@@ -2,8 +2,13 @@ library(shiny)
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
+library(shinydashboard)
+library(usmap)
+library(readr)
+library(ggalt)
+library(shinyWidgets)
 
-
+# Load and preprocess data
 datajob <- read_csv("https://uwmadison.box.com/shared/static/50z80zegvymqwmjqu8jd7h87pd9tiak0.csv")
 
 datajob = datajob %>% 
@@ -36,71 +41,172 @@ datajob <- datajob %>%
     TRUE ~ "Other"
   ))
 
-ui <- fluidPage(
-  
-  titlePanel("Data Science Fields and Salaries by Experience Level (2023)"),
-  
-  sidebarLayout(
-    sidebarPanel(
-      
-      selectInput("job_field",
-                  "Job Field",
-                  choices = unique(datajob$category),
-                  multiple = TRUE,
-                  selected = unique(datajob$category)),
-      
-      selectInput("experience",
-                  "Experience Level:",
-                  choices = c("Entry Level" = "EN",
-                              "Mid Level" = "MI",
-                              "Senior Level" = "SE",
-                              "Executive Level" = "EX"),
-                  multiple = TRUE),
-      
-      checkboxGroupInput("company_size", 
-                         "Company Size", 
-                         choices = c("Small (<50 Employees)" = "S",
-                                     "Medium (50 to 250 Employees)" = "M",
-                                     "Large (>250 Employees)" = "L"),
-                         selected = unique(datajob$company_size))
+data_cost = read.csv("cost-of-living-index-by-state-2024.csv")
+data_cost[52, "CostOfLivingIndex2023"] <- 100
+new_column_names <- c("state", "CostOfLivingIndex", "GroceryIndex", 
+                      "HealthcareIndex", "HousingIndex", "MiscIndex", 
+                      "TransportationIndex", "UtilityIndex") 
+colnames(data_cost) <- new_column_names
 
-    ),
-    
-    mainPanel(
-      plotOutput("experienceBar")
+for (col in c("CostOfLivingIndex", "GroceryIndex", "HealthcareIndex", 
+              "HousingIndex", "MiscIndex", "TransportationIndex", "UtilityIndex")) {
+  data_cost[[col]] <- as.numeric(data_cost[[col]])
+}
+
+data_cost <- data_cost %>% 
+  select(which(colSums(is.na(.)) == 0)) %>% 
+  filter(state != "United States")
+
+ui <- dashboardPage(
+  dashboardHeader(title = "Data Science Jobs and Salaries"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Average Salary by Experience", tabName = "salary_by_experience", icon = icon("bar-chart")),
+      menuItem("Cost of Living Analysis", tabName = "cost_of_living", icon = icon("globe"))
     )
-    
+  ),
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "salary_by_experience",
+              fluidRow(
+                box(
+                  title = "Average Salary by Experience Level",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = TRUE,
+                  width = 12,
+                  selectInput("job_field",
+                              "Job Field",
+                              choices = unique(datajob$category),
+                              multiple = TRUE,
+                              selected = unique(datajob$category)),
+                  
+                  selectInput("experience",
+                              "Experience Level:",
+                              choices = c("Entry Level" = "EN",
+                                          "Mid Level" = "MI",
+                                          "Senior Level" = "SE",
+                                          "Executive Level" = "EX"),
+                              multiple = TRUE,
+                              selected = c("EN", "MI", "SE", "EX")),
+                  
+                  checkboxGroupInput("company_size", 
+                                     "Company Size", 
+                                     choices = c("Small (<50 Employees)" = "S",
+                                                 "Medium (50 to 250 Employees)" = "M",
+                                                 "Large (>250 Employees)" = "L"),
+                                     selected = unique(datajob$company_size)),
+                  plotOutput("experienceBar")
+                )
+              )
+      ),
+      
+      tabItem(tabName = "cost_of_living",
+              fluidRow(
+                tags$div(
+                  style = "text-align: left; font-size: 20px; margin-bottom: 20px;",
+                  "Compare how the cost of living as well as how six main contributing factors to the cost of living differ in each state across the U.S. 
+                  When comparing costs across states, the average cost of living in the United States is used as the baseline set at 100. 
+                  States are then measured against this baseline. 
+                  For example, a state with a cost of living index of 200 is twice as expensive as the national average. 
+                  Likewise, living in a state with an index of 50 will cost about half the national average."
+                ),
+                tags$div(
+                  style = "text-align: left; font-size: 20px; margin-bottom: 20px;",
+                  HTML("<b>Choose state(s) to consider and then one factor to compare, and optionally choose an index range for a more restrictive search</b>")
+                ),
+                box(
+                  title = "Cost of Living Indexes in the U.S. 2024",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = TRUE,
+                  width = 12,
+                  pickerInput("state", 
+                              "Select state(s):", 
+                              choices = unique(data_cost$state), 
+                              selected = unique(data_cost$state), 
+                              multiple = TRUE,
+                              options = list(`actions-box` = TRUE, `live-search` = TRUE)
+                  ),
+                  
+                  selectInput("factors", 
+                              "Select what factor to consider:",
+                              choices = c("Cost of Living Overall" = "CostOfLivingIndex",
+                                          "Grocery Costs" = "GroceryIndex",
+                                          "Healthcare Costs" = "HealthcareIndex",
+                                          "Housing Costs" = "HousingIndex",
+                                          "Miscellaneous Costs" = "MiscIndex",
+                                          "Transportation Costs" = "TransportationIndex",
+                                          "Utility Costs" = "UtilityIndex"),
+                              selected = "CostOfLivingIndex"),
+                  
+                  sliderInput("indexRange", 
+                              "Index Range:", 
+                              min = 50, 
+                              max = 350, 
+                              value = c(50, 350)),
+                  plotOutput("stateMap")
+                )
+              )
+      )
+    )
   )
 )
 
 server <- function(input, output) {
-  
-  filteredData <- reactive({
+  # Tab 1: Average Salary by Experience
+  filteredDataSalary <- reactive({
     datajob %>% 
       filter(category %in% input$job_field) %>%
       filter(experience_level %in% input$experience) %>%
       filter(company_size %in% input$company_size) %>%
       group_by(category, experience_level) %>%
-      summarize(avg_salary = mean(salary_in_usd), .groups = 'drop') %>% 
+      summarize(avg_salary = mean(salary_in_usd), .groups = 'drop') %>%
       arrange(avg_salary)
   })
   
   output$experienceBar <- renderPlot({
-    filtered <- filteredData()
+    filtered <- filteredDataSalary()
     
     if(nrow(filtered) == 0) {
       return(NULL)
     }
     
-    ggplot(filtered, aes(x = category, y = avg_salary, fill = experience_level)) +
+    ggplot(filtered, aes(x = reorder(category, avg_salary), y = avg_salary, fill = experience_level)) +
       geom_bar(stat = "identity", position = position_dodge()) +
       labs(x = "Job Field", y = "Average Salary (USD)", fill = "Experience Level") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
       scale_fill_manual(values = c("EN" = "blue", "MI" = "green", "SE" = "orange", "EX" = "red"),
                         labels = c("EN" = "Entry Level", "MI" = "Mid Level", "SE" = "Senior Level", "EX" = "Executive Level"))
   })
+  
+  # Tab 2: Cost of Living 
+  filteredDataLiving <- reactive({
+    if (length(input$state) == 0) {
+      return(NULL)
+    }
+    
+    filtered = data_cost %>% 
+      filter(state %in% input$state) %>%
+      filter(between(.data[[input$factors]], input$indexRange[1], input$indexRange[2]))
+    
+    if (nrow(filtered) == 0) {
+      return(NULL)
+    }
+    
+    return(filtered)
+  })
+  
+  output$stateMap <- renderPlot({
+    if (is.null(filteredDataLiving())) {
+      plot_usmap(regions = "states", labels = TRUE, fill = "grey") 
+    } else {
+      plot_usmap(data = filteredDataLiving(), values = input$factors, regions = "states", labels = TRUE) +
+        scale_fill_continuous(low = "beige", high = "blue", na.value = "grey", name = input$factors) +
+        theme(legend.position = "right") +
+        labs(fill = "Index Value")
+    }
+  })
 }
-
-
 
 shinyApp(ui = ui, server = server)
